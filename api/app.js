@@ -74,6 +74,61 @@ async function listadoPedidosArray(colecc, username) {
   }
 }
 
+async function listadoPedidosArray(colecc, username) {
+  const cliente = await conectarCliente();
+  try {
+    const database = cliente.db(nombreBBDD);
+    const datos = database.collection(colecc);
+
+    const query = { name: username };
+    const documento = await datos.findOne(query);
+
+    if (documento) {
+      return documento.pedidos;
+    } else {
+      return [];
+    }
+  } finally {
+    await cliente.close();
+  }
+}
+
+
+async function listadoPedidosPendientes(colecc) {
+  const cliente = await conectarCliente();
+  try {
+    const database = cliente.db(nombreBBDD);
+    const datos = database.collection(colecc);
+
+    // Find all users
+    const usuarios = await datos.find({}).toArray();
+
+    // Initialize an array to hold all pedidos with estado: "pendiente"
+    const pedidosPendientes = [];
+
+    // Iterate through each user
+    for (const usuario of usuarios) {
+      // Check if the user has pedidos
+      if (usuario.pedidos && Array.isArray(usuario.pedidos)) {
+        // Filter the pedidos array for objects with estado: "pendiente"
+        const pendientes = usuario.pedidos
+          .filter(pedido => pedido.estado === "pendiente")
+          .map(pedido => ({
+            ...pedido, // Spread the existing pedido object
+            name: usuario.name // Add the name from the usuario (same level as pedidos)
+          }));
+
+        // Add the filtered and modified pedidos to the result array
+        pedidosPendientes.push(...pendientes);
+      }
+    }
+
+    return pedidosPendientes;
+  } finally {
+    await cliente.close();
+  }
+}
+
 
 async function checkCred(nombre,passw){
   let autorizacion = false;
@@ -224,13 +279,15 @@ app.get('/api/prods',async(req, res)=>{  // mostrar todos los menus
 /* POST */
 
 app.post('/api/comprs',async(req, res)=>{  // mostrar todos los pedidos del cliente
-  console.log("compras");
   let userC = req.body.user;
   let productos=await listadoPedidosArray('creds',userC);
   res.json(productos);
 });
 
-
+app.post('/api/comprsall',async(req, res)=>{  // mostrar todos los pedidos de todos los clientes
+  let productos=await listadoPedidosPendientes('creds');
+  res.json(productos);
+});
 
 
 
