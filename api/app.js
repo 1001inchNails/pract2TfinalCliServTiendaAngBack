@@ -196,6 +196,131 @@ async function cambiarDocuDeColecc(nombreKeyId,valorId,coleccOrigen,coleccDestin
   }
 }
 
+async function copiarDocu(nombreuser, nombreKeyId, valorId, coleccOrigen, coleccDestino) {
+  const cliente = await conectarCliente();
+  try {
+    const database = cliente.db(nombreBBDD);
+
+    // Buscamos el documento con el nombre de usuario
+    let origen = database.collection(coleccOrigen);
+    let query = { name: nombreuser };
+    let documento = await origen.findOne(query);
+
+    if (documento) {
+      // Accedemos al array 'pedidos' y buscamos el objeto con nombreKeyId:valorId
+      let pedidos = documento.pedidos;
+      let objetoEncontrado = pedidos.find(pedido => pedido[nombreKeyId] === valorId);
+
+      if (objetoEncontrado) {
+        // Copiamos el objeto encontrado a la colección de destino
+        let destino = database.collection(coleccDestino);
+        await destino.insertOne(objetoEncontrado);
+        console.log('Objeto copiado exitosamente.');
+      } else {
+        console.error('Objeto no encontrado en el array pedidos.');
+      }
+    } else {
+      console.error('Documento no encontrado.');
+    }
+
+  } catch (err) {
+    console.error('Error:', err);
+  } finally {
+    await cliente.close();
+  }
+}
+
+
+async function devolverStock(idProducto, extraStock) {
+  console.log("idP-extrSTock",idProducto,extraStock);
+  const cliente = await conectarCliente();
+
+  try {
+      const database = cliente.db(nombreBBDD);
+      const productosCollection = database.collection('productos');
+
+      // Find the document with the specified idProducto
+      const query = { id: idProducto };
+      const producto = await productosCollection.findOne(query);
+
+      if (!producto) {
+          throw new Error('Product not found');
+      }
+
+      // Get the current stock value
+      const currentStock = producto.stock;
+
+      // Calculate the new stock value
+      const newStock = currentStock + extraStock;
+
+      // Update the document with the new stock value
+      const updateQuery = { id: idProducto };
+      const updateOperation = { $set: { stock: newStock } };
+      await productosCollection.updateOne(updateQuery, updateOperation);
+
+
+  } finally {
+      await client.close();
+  }
+}
+
+
+
+
+async function cambiarEstadoPedido(nuevoestado, nombreuser, nombreKeyId, valorId, coleccOrigen) {
+  console.log(nuevoestado, nombreuser, nombreKeyId, valorId, coleccOrigen);
+  const cliente = await conectarCliente();
+  try {
+    const database = cliente.db(nombreBBDD);
+
+    // Buscamos el documento con el nombre de usuario
+    let origen = database.collection(coleccOrigen);
+    let query = { name: nombreuser };
+    let documento = await origen.findOne(query);
+
+    if (documento) {
+      // Accedemos al array 'pedidos'
+      let pedidos = documento.pedidos;
+      console.log(pedidos);
+
+      // Buscamos el objeto en el array 'pedidos' que cumple con nombreKeyId:valorId y estado:"pendiente"
+      let objetoEncontrado = pedidos.find(pedido => 
+        pedido[nombreKeyId] === valorId && pedido.estado === "pendiente"
+      );
+
+      if (objetoEncontrado) {
+        // Cambiamos el estado del objeto encontrado
+        objetoEncontrado.estado = nuevoestado;
+
+        // Actualizamos el documento en la colección de origen
+        await origen.updateOne(
+          { 
+            name: nombreuser, 
+            "pedidos": { 
+              $elemMatch: { 
+                [nombreKeyId]: valorId, 
+                estado: "pendiente" 
+              } 
+            } 
+          },
+          { $set: { "pedidos.$": objetoEncontrado } }
+        );
+
+        console.log('Estado del pedido actualizado exitosamente.');
+      } else {
+        console.error('Objeto no encontrado en el array pedidos con estado "pendiente".');
+      }
+    } else {
+      console.error('Documento no encontrado (cambiar estado).');
+    }
+
+  } catch (err) {
+    console.error('Error:', err);
+  } finally {
+    await cliente.close();
+  }
+}
+
 
 async function modifProducto(idvalue, producto, descripcion, precio, stock, rutaImagen) { // modificar valores de producto, por id
   const cliente = await conectarCliente();
@@ -353,6 +478,7 @@ app.post('/api/enviarPedido', async(req,res)=>{  // NUEVO PEDIDO
   try{
     let nuevoIndice=0;
     
+    let username = req.body.nombreUser;
     let idProducto = req.body.id;
     let nuevoProducto=req.body.producto;  // cojemos los valores para el nuevo dato
     let nuevaDescripcion=req.body.descripcion;
@@ -378,6 +504,7 @@ app.post('/api/enviarPedido', async(req,res)=>{  // NUEVO PEDIDO
 
 
     let datoNuevo={
+      "username":username,
       "idPedido":nuevoIndice.toString(),
       "id":idProducto,
       "producto":nuevoProducto,
@@ -416,6 +543,37 @@ app.post('/api/moverDocumento', async(req,res)=>{ // MOVER A OTRA COLECCION Y BO
 });
 
 
+app.post('/api/copiarDocumento', async(req,res)=>{ // COPIAR A OTRA COLECCION
+  try{
+    let username = req.body.username;
+    let idkey=req.body.idkey;
+    let idvalue=req.body.idvalue;
+    let coleccOrigen=req.body.coleccOrigen;
+    let coleccDestino=req.body.coleccDestino;
+
+    await copiarDocu(username,idkey,idvalue,coleccOrigen,coleccDestino);
+    res.json({"mensaje":"Documento copiado correctamente"});
+  }catch(error){
+    res.send({"mensaje":error});
+  }
+});
+
+
+app.post('/api/cambiarEstado', async(req,res)=>{ // CAMBIAR ESTADO
+  try{
+    let estado = req.body.estado;
+    let username = req.body.username;
+    let idkey=req.body.idkey;
+    let idvalue=req.body.idvalue;
+    let coleccOrigen=req.body.coleccOrigen;
+
+    await cambiarEstadoPedido(estado,username,idkey,idvalue,coleccOrigen);
+    res.json({"mensaje":"Estado cambiado correctamente"});
+  }catch(error){
+    res.send({"mensaje":error});
+  }
+});
+
 
 app.post('/api/modifProd', async(req,res)=>{ // MODIFICAR VALORES DE PRODUCTO
   try{
@@ -441,6 +599,20 @@ app.post('/api/updateStock', async(req,res)=>{ // MOVER A OTRA COLECCION Y BORRA
 
 
     await updateStock(id,stock);
+    res.json({"mensaje":"Update correcto"});
+  }catch(error){
+    res.send({"mensaje":error});
+  }
+});
+
+
+app.post('/api/devolverStock', async(req,res)=>{ // MOVER A OTRA COLECCION Y BORRAR DE LA ORIGINAL
+  try{
+    let id=req.body.idProducto;
+    let stock=req.body.extrastock;
+
+
+    await devolverStock(id,stock);
     res.json({"mensaje":"Update correcto"});
   }catch(error){
     res.send({"mensaje":error});
