@@ -266,6 +266,49 @@ async function devolverStock(idProducto, extraStock) {
 
 
 
+async function cancelarEliminar(nombreuser, nombreKeyId, valorId, coleccOrigen, coleccDestino, copiar) {
+  const cliente = await conectarCliente();
+  try {
+    const database = cliente.db(nombreBBDD);
+
+    // Buscamos el documento con el nombre de usuario
+    let origen = database.collection(coleccOrigen);
+    let query = { name: nombreuser };
+    let documento = await origen.findOne(query);
+
+    if (documento) {
+      // Accedemos al array 'pedidos' y buscamos el objeto con nombreKeyId:valorId
+      let pedidos = documento.pedidos;
+      let objetoEncontrado = pedidos.find(pedido => pedido[nombreKeyId] === valorId);
+
+      if (objetoEncontrado) {
+        if (copiar) {
+          // Copiamos el objeto encontrado a la colección de destino
+          let destino = database.collection(coleccDestino);
+          await destino.insertOne(objetoEncontrado);
+          console.log('Objeto copiado exitosamente.');
+        }
+
+        // Eliminamos el objeto del array 'pedidos'
+        let updatedPedidos = pedidos.filter(pedido => pedido[nombreKeyId] !== valorId);
+        await origen.updateOne(query, { $set: { pedidos: updatedPedidos } });
+        console.log('Objeto eliminado del array pedidos.');
+
+      } else {
+        console.error('Objeto no encontrado en el array pedidos.');
+      }
+    } else {
+      console.error('Documento no encontrado.');
+    }
+
+  } catch (err) {
+    console.error('Error:', err);
+  } finally {
+    await cliente.close();
+  }
+}
+
+
 
 async function cambiarEstadoPedido(nuevoestado, nombreuser, nombreKeyId, valorId, coleccOrigen) {
   console.log(nuevoestado, nombreuser, nombreKeyId, valorId, coleccOrigen);
@@ -401,6 +444,11 @@ app.get('/api/prods',async(req, res)=>{  // mostrar todos los menus
   res.json(productos);
 });
 
+app.get('/api/hist',async(req, res)=>{  // mostrar historial
+  let productos=await listadoDatos('pedidosHistorial');
+  res.json(productos);
+});
+
 /* POST */
 
 app.post('/api/comprs',async(req, res)=>{  // mostrar todos los pedidos del cliente
@@ -488,19 +536,22 @@ app.post('/api/enviarPedido', async(req,res)=>{  // NUEVO PEDIDO
     let user = req.body.nombreUser;
     let estado = req.body.estado;
 
-    console.log("user: ",user);
     let productosC=await listadoPedidos('creds',user);
     console.log("proCL: ",productosC.length);
 
     if(productosC.length>0){  // calculamos nuevo indice, de esta manera no se rompe el flujo natural de ids si se borra un objeto
       let ultimo = productosC[productosC.length - 1];
-      nuevoIndice=ultimo.id;
+      console.log("ultimo",ultimo);
+      nuevoIndice=ultimo.idPedido;
+      console.log("nuevoindice",nuevoIndice);
       nuevoIndice++;
+      console.log("nuevoindice++",nuevoIndice);
     }else{
       nuevoIndice=(productosC.length);
+      console.log("else nuevoindice",nuevoIndice);
       nuevoIndice++;
+      console.log("else nuevoindice++",nuevoIndice);
     }
-    console.log("indice : ",nuevoIndice);
 
 
     let datoNuevo={
@@ -559,6 +610,23 @@ app.post('/api/copiarDocumento', async(req,res)=>{ // COPIAR A OTRA COLECCION
 });
 
 
+app.post('/api/cancelareliminar', async(req,res)=>{ // cancelar/eliminar
+  try{
+    let username = req.body.username;
+    let idkey=req.body.idkey;
+    let idvalue=req.body.idvalue;
+    let coleccOrigen=req.body.coleccOrigen;
+    let coleccDestino=req.body.coleccDestino;
+    let copiar = req.body.copiar;
+
+    await cancelarEliminar(username,idkey,idvalue,coleccOrigen,coleccDestino,copiar);
+    res.json({"mensaje":"Documento copiado correctamente"});
+  }catch(error){
+    res.send({"mensaje":error});
+  }
+});
+
+
 app.post('/api/cambiarEstado', async(req,res)=>{ // CAMBIAR ESTADO
   try{
     let estado = req.body.estado;
@@ -592,7 +660,7 @@ app.post('/api/modifProd', async(req,res)=>{ // MODIFICAR VALORES DE PRODUCTO
 });
 
 
-app.post('/api/updateStock', async(req,res)=>{ // MOVER A OTRA COLECCION Y BORRAR DE LA ORIGINAL
+app.post('/api/updateStock', async(req,res)=>{ // update stock...
   try{
     let id=req.body.id;
     let stock=req.body.stock;
@@ -606,7 +674,7 @@ app.post('/api/updateStock', async(req,res)=>{ // MOVER A OTRA COLECCION Y BORRA
 });
 
 
-app.post('/api/devolverStock', async(req,res)=>{ // MOVER A OTRA COLECCION Y BORRAR DE LA ORIGINAL
+app.post('/api/devolverStock', async(req,res)=>{ //devolver stock despues de rechazar compra
   try{
     let id=req.body.idProducto;
     let stock=req.body.extrastock;
