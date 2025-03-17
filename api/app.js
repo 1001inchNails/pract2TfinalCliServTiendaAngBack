@@ -7,6 +7,13 @@ app.use(express.json());
 const mongoURI = process.env.MONGO_URI;
 const nombreBBDD = process.env.DDBB_NAME;
 
+const jwt = require("jsonwebtoken");
+const cors = require("cors");
+
+app.use(express.json());
+app.use(cors());
+
+const SECRET_KEY = "hitlerdidnothingwrong"; // (es broma...)
 
 async function conectarCliente(){
 const { MongoClient, ServerApiVersion } = require('mongodb');
@@ -417,6 +424,12 @@ res.json(productos);
 });
 
 /* POST */
+
+app.post("/login", (req, res) => {  // para crear token de autorizacion
+  const { nombre, autoriz } = req.body;
+  const token = jwt.sign({ nombre, autoriz }, SECRET_KEY, { expiresIn: "1h" });
+  res.json({ token });
+});
 
 app.post('/api/comprs',async(req, res)=>{  // mostrar todos los pedidos del cliente
 let userC = req.body.user;
