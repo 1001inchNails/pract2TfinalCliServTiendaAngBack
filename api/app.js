@@ -235,10 +235,38 @@ async function numPedidosCliente(username) {
   }
   
   const numeroPedidosCli = clienteDatos.numeroPedidos;
-  console.log("cli   ",numeroPedidosCli);
   
   return numeroPedidosCli;
   
+  
+  } finally {
+  await cliente.close();
+  }
+  }
+
+// set nuevo numero de pedidos de cliente
+async function setGetNumPedidosCliente(username) {
+  const cliente = await conectarCliente();
+  
+  try {
+  const database = cliente.db(nombreBBDD);
+  const productosCollection = database.collection('creds');
+  
+  const query = { name: username }; // busqueda del cliente
+  const clienteDatos = await productosCollection.findOne(query);
+  
+  if (!clienteDatos) {
+  throw new Error('Cliente not found, dog');
+  }
+  
+  let numeroPedidosCli = clienteDatos.numeroPedidos;
+  let nuevonumePed = numeroPedidosCli+1;
+  
+  const updateOperation = { $set: { numeroPedidos: nuevonumePed } };
+  await productosCollection.updateOne(query, updateOperation);
+
+  return nuevonumePed;
+    
   
   } finally {
   await cliente.close();
@@ -365,6 +393,48 @@ await cliente.close();
 }
 }
 
+// operacion de cambio de estado en TODOS los objetos de array pedidos con variable x:y 
+async function cambiarEstadoPedidoAll(nuevoestado, nombreuser, nombreKeyId, valorId, coleccOrigen) {
+  console.log("---------funct----------", nuevoestado, nombreuser, nombreKeyId, valorId, coleccOrigen);
+  const cliente = await conectarCliente();
+  try {
+      const database = cliente.db(nombreBBDD);
+      const origen = database.collection(coleccOrigen);
+
+      // Define the query to find all documents with the matching username
+      const query = { name: nombreuser };
+      console.log("Query:", JSON.stringify(query, null, 2));
+      // Use $[<identifier>] array filter to target all matching pedidos
+      const update = {
+          $set: { "pedidos.$[pedido].estado": nuevoestado }
+      };
+
+      const options = {
+          arrayFilters: [
+              {
+                  [`pedido.${nombreKeyId}`]: valorId // Match the specific nombreKeyId: valorId
+              }
+          ]
+      };
+
+      // Perform the updateMany operation
+      const result = await origen.updateMany(query, update, options);
+
+      if (result.modifiedCount > 0) {
+          console.log(`Se actualizaron ${result.modifiedCount} documentos exitosamente.`);
+      } else {
+          console.log('No se encontraron documentos o pedidos para modificar.');
+      }
+
+  } catch (err) {
+      console.error('Error:', err);
+  } finally {
+      await cliente.close();
+  }
+}
+
+
+
 // modificar valores de producto, por id
 async function modifProducto(idvalue, producto, descripcion, precio, stock, rutaImagen) { 
 const cliente = await conectarCliente();
@@ -460,7 +530,13 @@ app.post("/login", (req, res) => {  // para crear token de autorizacion
 app.post("/api/getnumpedidoscli", async(req, res) => {  // get numero de pedidos del cliente
   let username = req.body.user;
   let numeroPedidosClie=await numPedidosCliente(username);
-  console.log("cli post   ",numeroPedidosClie);
+  res.json({ "numero":numeroPedidosClie });
+});
+
+app.post("/api/setUndGetnumpedidoscli", async(req, res) => {  // set numero de pedidos del cliente
+  let username = req.body.user;
+  let numeroPedidosClie=await setGetNumPedidosCliente(username);
+  console.log("set get hist",numeroPedidosClie);
   res.json({ "numero":numeroPedidosClie });
 });
 
@@ -650,6 +726,23 @@ res.json({"mensaje":"Estado cambiado correctamente"});
 res.send({"mensaje":error});
 }
 });
+
+app.post('/api/cambiarEstadoAll', async(req,res)=>{ // cambiar estado de pedido todos los elementos
+  try{
+  let estado = req.body.estado;
+  let username = req.body.username;
+  let idkey=req.body.idkey;
+  let idvalue=req.body.idvalue;
+  let coleccOrigen=req.body.coleccOrigen;
+
+  console.log("-------------------",estado, username, idkey, idvalue, coleccOrigen);
+  
+  await cambiarEstadoPedidoAll(estado,username,idkey,idvalue,coleccOrigen);
+  res.json({"mensaje":"Estado cambiado correctamente"});
+  }catch(error){
+  res.send({"mensaje":error});
+  }
+  });
 
 app.post('/api/modifProd', async(req,res)=>{ // modificar producto
 try{
