@@ -219,6 +219,31 @@ await cliente.close();
 }
 }
 
+// devolver numero de pedidos de cliente
+async function numPedidosCliente(username) {
+  const cliente = await conectarCliente();
+  
+  try {
+  const database = cliente.db(nombreBBDD);
+  const productosCollection = database.collection('creds');
+  
+  const query = { name: username }; // busqueda del cliente
+  const clienteDatos = await productosCollection.findOne(query);
+  
+  if (!clienteDatos) {
+  throw new Error('Cliente not found, dog');
+  }
+  
+  const numeroPedidosCli = clienteDatos.numeroPedidos;
+  
+  return numeroPedidosCli;
+  
+  
+  } finally {
+  await cliente.close();
+  }
+  }
+
 // para cancelar o eliminar pedidos (cliente)
 async function cancelarEliminar(nombreuser, nombreKeyId, valorId, coleccOrigen, coleccDestino, copiar) {
 const cliente = await conectarCliente();
@@ -429,6 +454,12 @@ app.post("/login", (req, res) => {  // para crear token de autorizacion
   const { nombre, autoriz } = req.body;
   const token = jwt.sign({ nombre, autoriz }, SECRET_KEY, { expiresIn: "1h" });
   res.json({ token });
+});
+
+app.post("api/getnumpedidoscli", async(req, res) => {  // get numero de pedidos del cliente
+  let username = req.body.user;
+  let numeroPedidosCli=await numPedidosCliente(username);
+  res.json({ "numero":numeroPedidosCli });
 });
 
 app.post('/api/comprs',async(req, res)=>{  // mostrar todos los pedidos del cliente
