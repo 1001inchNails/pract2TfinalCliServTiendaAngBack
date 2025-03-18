@@ -235,6 +235,7 @@ async function numPedidosCliente(username) {
   }
   
   const numeroPedidosCli = clienteDatos.numeroPedidos;
+  console.log("cli   ",numeroPedidosCli);
   
   return numeroPedidosCli;
   
@@ -456,10 +457,11 @@ app.post("/login", (req, res) => {  // para crear token de autorizacion
   res.json({ token });
 });
 
-app.post("api/getnumpedidoscli", async(req, res) => {  // get numero de pedidos del cliente
+app.post("/api/getnumpedidoscli", async(req, res) => {  // get numero de pedidos del cliente
   let username = req.body.user;
-  let numeroPedidosCli=await numPedidosCliente(username);
-  res.json({ "numero":numeroPedidosCli });
+  let numeroPedidosClie=await numPedidosCliente(username);
+  console.log("cli post   ",numeroPedidosClie);
+  res.json({ "numero":numeroPedidosClie });
 });
 
 app.post('/api/comprs',async(req, res)=>{  // mostrar todos los pedidos del cliente
@@ -534,6 +536,7 @@ let nuevoIndice=0;
 // cojemos los valores para el nuevo pedido
 let username = req.body.nombreUser;
 let idProducto = req.body.id;
+let idNumeroHistoricoProducto = req.body.numeroHistoricoPedidos;
 let nuevoProducto=req.body.producto;  
 let nuevaDescripcion=req.body.descripcion;
 let nuevoPrecio=req.body.precio;
@@ -557,6 +560,7 @@ let datoNuevo={
 "username":username,
 "idPedido":nuevoIndice.toString(),
 "id":idProducto,
+"numeroHistoricoPedidos":idNumeroHistoricoProducto,
 "producto":nuevoProducto,
 "descripcion":nuevaDescripcion,
 "precio":nuevoPrecio,
