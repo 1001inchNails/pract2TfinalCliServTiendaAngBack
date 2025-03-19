@@ -44,17 +44,17 @@ await cliente.close();
 
 // todos los documentos de coleccion "x" con usuario "y"
 async function listadoDatosConUser(colecc, user) {
-  const cliente=await conectarCliente();
-  try {
-  const database = cliente.db(nombreBBDD);
-  const datos = database.collection(colecc);
-  const query = {username:user};
-  let dato = await datos.find(query).toArray();
-  return dato;
-  } finally {
-  await cliente.close();
-  }
-  }
+const cliente=await conectarCliente();
+try {
+const database = cliente.db(nombreBBDD);
+const datos = database.collection(colecc);
+const query = {username:user};
+let dato = await datos.find(query).toArray();
+return dato;
+} finally {
+await cliente.close();
+}
+}
 
 // todos los pedidos de "x" coleccion, "y" usuario
 async function listadoPedidos(colecc, username) {
@@ -235,57 +235,57 @@ await cliente.close();
 
 // devolver numero de pedidos de cliente
 async function numPedidosCliente(username) {
-  const cliente = await conectarCliente();
-  
-  try {
-  const database = cliente.db(nombreBBDD);
-  const productosCollection = database.collection('creds');
-  
-  const query = { name: username }; // busqueda del cliente
-  const clienteDatos = await productosCollection.findOne(query);
-  
-  if (!clienteDatos) {
-  throw new Error('Cliente not found, dog');
-  }
-  
-  const numeroPedidosCli = clienteDatos.numeroPedidos;
-  
-  return numeroPedidosCli;
-  
-  
-  } finally {
-  await cliente.close();
-  }
-  }
+const cliente = await conectarCliente();
+
+try {
+const database = cliente.db(nombreBBDD);
+const productosCollection = database.collection('creds');
+
+const query = { name: username }; // busqueda del cliente
+const clienteDatos = await productosCollection.findOne(query);
+
+if (!clienteDatos) {
+throw new Error('Cliente not found, dog');
+}
+
+const numeroPedidosCli = clienteDatos.numeroPedidos;
+
+return numeroPedidosCli;
+
+
+} finally {
+await cliente.close();
+}
+}
 
 // set nuevo numero de pedidos de cliente
 async function setGetNumPedidosCliente(username) {
-  const cliente = await conectarCliente();
-  
-  try {
-  const database = cliente.db(nombreBBDD);
-  const productosCollection = database.collection('creds');
-  
-  const query = { name: username }; // busqueda del cliente
-  const clienteDatos = await productosCollection.findOne(query);
-  
-  if (!clienteDatos) {
-  throw new Error('Cliente not found, dog');
-  }
-  
-  let numeroPedidosCli = clienteDatos.numeroPedidos;
-  let nuevonumePed = numeroPedidosCli+1;
-  
-  const updateOperation = { $set: { numeroPedidos: nuevonumePed } };
-  await productosCollection.updateOne(query, updateOperation);
+const cliente = await conectarCliente();
 
-  return nuevonumePed;
-    
-  
-  } finally {
-  await cliente.close();
-  }
-  }
+try {
+const database = cliente.db(nombreBBDD);
+const productosCollection = database.collection('creds');
+
+const query = { name: username }; // busqueda del cliente
+const clienteDatos = await productosCollection.findOne(query);
+
+if (!clienteDatos) {
+throw new Error('Cliente not found, dog');
+}
+
+let numeroPedidosCli = clienteDatos.numeroPedidos;
+let nuevonumePed = numeroPedidosCli+1;
+
+const updateOperation = { $set: { numeroPedidos: nuevonumePed } };
+await productosCollection.updateOne(query, updateOperation);
+
+return nuevonumePed;
+
+
+} finally {
+await cliente.close();
+}
+}
 
 // para cancelar o eliminar pedidos (cliente)
 async function cancelarEliminar(nombreuser, nombreKeyId, valorId, coleccOrigen, coleccDestino, copiar) {
@@ -384,8 +384,8 @@ await origen.updateOne( // actualizamos el documento en la colección de origen
 name: nombreuser, 
 "pedidos": { 
 $elemMatch: { 
-  [nombreKeyId]: valorId, 
-  estado: "pendiente" 
+[nombreKeyId]: valorId, 
+estado: "pendiente" 
 } 
 } 
 },
@@ -409,37 +409,37 @@ await cliente.close();
 
 // operacion de cambio de estado en TODOS los objetos de array pedidos con variable x:y 
 async function cambiarEstadoPedidoAll(nuevoestado, nombreuser, nombreKeyId, valorId, coleccOrigen) {
-  const cliente = await conectarCliente();
-  try {
-      const database = cliente.db(nombreBBDD);
-      const origen = database.collection(coleccOrigen);
+const cliente = await conectarCliente();
+try {
+const database = cliente.db(nombreBBDD);
+const origen = database.collection(coleccOrigen);
 
-      const query = { name: nombreuser };
-      console.log("Query:", JSON.stringify(query, null, 2));
-      const update = {
-          $set: { "pedidos.$[pedido].estado": nuevoestado }
-      };
-      const options = {
-          arrayFilters: [
-              {
-                  [`pedido.${nombreKeyId}`]: valorId
-              }
-          ]
-      };
+const query = { name: nombreuser };
+console.log("Query:", JSON.stringify(query, null, 2));
+const update = {
+$set: { "pedidos.$[pedido].estado": nuevoestado }
+};
+const options = {
+arrayFilters: [
+    {
+        [`pedido.${nombreKeyId}`]: valorId
+    }
+]
+};
 
-      const result = await origen.updateMany(query, update, options);
+const result = await origen.updateMany(query, update, options);
 
-      if (result.modifiedCount > 0) {
-          console.log(`Se actualizaron ${result.modifiedCount} documentos exitosamente.`);
-      } else {
-          console.log('No se encontraron documentos o pedidos para modificar.');
-      }
+if (result.modifiedCount > 0) {
+console.log(`Se actualizaron ${result.modifiedCount} documentos exitosamente.`);
+} else {
+console.log('No se encontraron documentos o pedidos para modificar.');
+}
 
-  } catch (err) {
-      console.error('Error:', err);
-  } finally {
-      await cliente.close();
-  }
+} catch (err) {
+console.error('Error:', err);
+} finally {
+await cliente.close();
+}
 }
 
 // modificar valores de producto, por id
@@ -529,28 +529,28 @@ res.json(productos);
 /* POST */
 
 app.post("/login", (req, res) => {  // para crear token de autorizacion
-  const { nombre, autoriz } = req.body;
-  const token = jwt.sign({ nombre, autoriz }, SECRET_KEY, { expiresIn: "1h" });
-  res.json({ token });
+const { nombre, autoriz } = req.body;
+const token = jwt.sign({ nombre, autoriz }, SECRET_KEY, { expiresIn: "1h" });
+res.json({ token });
 });
 
 app.post('/api/histconuser',async(req, res)=>{  // mostrar historial
-  const usuario = req.body.user;
-  let productos=await listadoDatosConUser('pedidosHistorial',usuario);
-  res.json(productos);
-  });
+const usuario = req.body.user;
+let productos=await listadoDatosConUser('pedidosHistorial',usuario);
+res.json(productos);
+});
 
 app.post("/api/getnumpedidoscli", async(req, res) => {  // get numero de pedidos del cliente
-  let username = req.body.user;
-  let numeroPedidosClie=await numPedidosCliente(username);
-  res.json({ "numero":numeroPedidosClie });
+let username = req.body.user;
+let numeroPedidosClie=await numPedidosCliente(username);
+res.json({ "numero":numeroPedidosClie });
 });
 
 app.post("/api/setUndGetnumpedidoscli", async(req, res) => {  // set numero de pedidos del cliente
-  let username = req.body.user;
-  let numeroPedidosClie=await setGetNumPedidosCliente(username);
-  console.log("set get hist",numeroPedidosClie);
-  res.json({ "numero":numeroPedidosClie });
+let username = req.body.user;
+let numeroPedidosClie=await setGetNumPedidosCliente(username);
+console.log("set get hist",numeroPedidosClie);
+res.json({ "numero":numeroPedidosClie });
 });
 
 app.post('/api/comprs',async(req, res)=>{  // mostrar todos los pedidos del cliente
@@ -737,19 +737,19 @@ res.send({"mensaje":error});
 });
 
 app.post('/api/cambiarEstadoAll', async(req,res)=>{ // cambiar estado de pedido todos los elementos
-  try{
-  let estado = req.body.estado;
-  let username = req.body.username;
-  let idkey=req.body.idkey;
-  let idvalue=req.body.idvalue;
-  let coleccOrigen=req.body.coleccOrigen;
-  
-  await cambiarEstadoPedidoAll(estado,username,idkey,idvalue,coleccOrigen);
-  res.json({"mensaje":"Estado cambiado correctamente"});
-  }catch(error){
-  res.send({"mensaje":error});
-  }
-  });
+try{
+let estado = req.body.estado;
+let username = req.body.username;
+let idkey=req.body.idkey;
+let idvalue=req.body.idvalue;
+let coleccOrigen=req.body.coleccOrigen;
+
+await cambiarEstadoPedidoAll(estado,username,idkey,idvalue,coleccOrigen);
+res.json({"mensaje":"Estado cambiado correctamente"});
+}catch(error){
+res.send({"mensaje":error});
+}
+});
 
 app.post('/api/modifProd', async(req,res)=>{ // modificar producto
 try{
