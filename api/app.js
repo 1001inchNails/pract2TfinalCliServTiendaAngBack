@@ -42,6 +42,20 @@ await cliente.close();
 }
 }
 
+// todos los documentos de coleccion "x" con usuario "y"
+async function listadoDatosConUser(colecc, user) {
+  const cliente=await conectarCliente();
+  try {
+  const database = cliente.db(nombreBBDD);
+  const datos = database.collection(colecc);
+  const query = {username:user};
+  let dato = await datos.find(query).toArray();
+  return dato;
+  } finally {
+  await cliente.close();
+  }
+  }
+
 // todos los pedidos de "x" coleccion, "y" usuario
 async function listadoPedidos(colecc, username) {
 const cliente = await conectarCliente();
@@ -526,6 +540,12 @@ app.post("/login", (req, res) => {  // para crear token de autorizacion
   const token = jwt.sign({ nombre, autoriz }, SECRET_KEY, { expiresIn: "1h" });
   res.json({ token });
 });
+
+app.post('/api/histconuser',async(req, res)=>{  // mostrar historial
+  const usuario = req.body.user;
+  let productos=await listadoDatosConUser('pedidosHistorial',usuario);
+  res.json(productos);
+  });
 
 app.post("/api/getnumpedidoscli", async(req, res) => {  // get numero de pedidos del cliente
   let username = req.body.user;
