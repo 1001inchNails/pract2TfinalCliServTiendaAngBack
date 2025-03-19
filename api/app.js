@@ -303,8 +303,8 @@ let objetoEncontrado = pedidos.find(pedido => pedido[nombreKeyId] === valorId);
 
 if (objetoEncontrado) { // chequeo de existencia de objeto
 if (copiar) { // si hay orden de copiar (para compras que aun estan pendientes, se mandan al historial con estado:"cancelado" (esto ocurre en el jquery: client.js, linea 306))
-// Copiamos el objeto encontrado a la colección de destino
-let destino = database.collection(coleccDestino);
+
+let destino = database.collection(coleccDestino);// Copiamos el objeto encontrado a la colección de destino
 await destino.insertOne(objetoEncontrado);
 console.log('Objeto copiado exitosamente.');
 }
@@ -339,7 +339,7 @@ const cursor = collection.find({});
 
 while (await cursor.hasNext()) {  // para iterar sobre todos los elementos del cursor (true si hay mas, false si no)
 const doc = await cursor.next();  // siguiente elemento
-if (Array.isArray(doc.pedidos)) { // checqueo de existencia
+if (Array.isArray(doc.pedidos)) { // chequeo de existencia
 const updatedPedidos = doc.pedidos.filter(pedido => //  filtramos fuera (!) por estado:"pendiente" y id de producto
 !(pedido.estado === "pendiente" && pedido.id === idProducto)
 );
@@ -409,29 +409,24 @@ await cliente.close();
 
 // operacion de cambio de estado en TODOS los objetos de array pedidos con variable x:y 
 async function cambiarEstadoPedidoAll(nuevoestado, nombreuser, nombreKeyId, valorId, coleccOrigen) {
-  console.log("---------funct----------", nuevoestado, nombreuser, nombreKeyId, valorId, coleccOrigen);
   const cliente = await conectarCliente();
   try {
       const database = cliente.db(nombreBBDD);
       const origen = database.collection(coleccOrigen);
 
-      // Define the query to find all documents with the matching username
       const query = { name: nombreuser };
       console.log("Query:", JSON.stringify(query, null, 2));
-      // Use $[<identifier>] array filter to target all matching pedidos
       const update = {
           $set: { "pedidos.$[pedido].estado": nuevoestado }
       };
-
       const options = {
           arrayFilters: [
               {
-                  [`pedido.${nombreKeyId}`]: valorId // Match the specific nombreKeyId: valorId
+                  [`pedido.${nombreKeyId}`]: valorId
               }
           ]
       };
 
-      // Perform the updateMany operation
       const result = await origen.updateMany(query, update, options);
 
       if (result.modifiedCount > 0) {
@@ -446,8 +441,6 @@ async function cambiarEstadoPedidoAll(nuevoestado, nombreuser, nombreKeyId, valo
       await cliente.close();
   }
 }
-
-
 
 // modificar valores de producto, por id
 async function modifProducto(idvalue, producto, descripcion, precio, stock, rutaImagen) { 
@@ -571,8 +564,7 @@ let productos=await listadoPedidosPendientes('creds');
 res.json(productos);
 });
 
-//{"name":"nombreUsuario","password":"passwordUsuario"}
-app.post('/api/checkCreds', async(req,res)=>{
+app.post('/api/checkCreds', async(req,res)=>{ // chequeo de credenciales
 try{
 
 let nombreU=req.body.name;
@@ -585,7 +577,6 @@ res.send({"mensaje":error});
 }
 });
 
-//{"producto": "producto","descripcion": "descripcion","precio": "precio","stock": "stock","rutaImagen": "rutaImagen"}
 app.post('/api/nuevoProducto', async(req,res)=>{  // crear nuevo producto
 try{
 let nuevoIndice;
@@ -629,7 +620,6 @@ app.post('/api/enviarPedido', async(req,res)=>{  // realizar pedido
 try{
 let nuevoIndice=0;
 
-// cojemos los valores para el nuevo pedido
 let username = req.body.nombreUser;
 let idProducto = req.body.id;
 let idNumeroHistoricoProducto = req.body.numeroHistoricoPedidos;
@@ -643,7 +633,7 @@ let estado = req.body.estado;
 
 let productosC=await listadoPedidos('creds',user);
 
-if(productosC.length>0){  // calculamos nuevo indice, de esta manera no se rompe el flujo natural de ids si se borra un objeto
+if(productosC.length>0){
 let ultimo = productosC[productosC.length - 1];
 nuevoIndice=ultimo.idPedido;
 nuevoIndice++;
@@ -675,7 +665,6 @@ res.send({"mensaje":error});
 }
 });
 
-//{"idkey":"nombreCampoId","idvalue":"valorDeId","coleccOrigen":"nombreColeccOriginal","coleccDestino":"nombreColeccDestino"}
 app.post('/api/moverDocumento', async(req,res)=>{ // mover documento borrando de origen
 try{
 let idkey=req.body.idkey;
@@ -754,8 +743,6 @@ app.post('/api/cambiarEstadoAll', async(req,res)=>{ // cambiar estado de pedido 
   let idkey=req.body.idkey;
   let idvalue=req.body.idvalue;
   let coleccOrigen=req.body.coleccOrigen;
-
-  console.log("-------------------",estado, username, idkey, idvalue, coleccOrigen);
   
   await cambiarEstadoPedidoAll(estado,username,idkey,idvalue,coleccOrigen);
   res.json({"mensaje":"Estado cambiado correctamente"});
